@@ -46,202 +46,208 @@ import java.util.Objects;
  * activity presents a grid of items as cards.
  */
 public class ArticleListActivity extends AppCompatActivity implements
-        LoaderManager.LoaderCallbacks<Cursor> {
+	LoaderManager.LoaderCallbacks<Cursor> {
+	private static final String TAG = ArticleListActivity.class.toString();
+	private SwipeRefreshLayout mSwipeRefreshLayout;
+	private RecyclerView mRecyclerView;
 
-    private static final String TAG = ArticleListActivity.class.toString();
-    private SwipeRefreshLayout mSwipeRefreshLayout;
-    private RecyclerView mRecyclerView;
+	private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss");
+	// Use default locale format
+	private SimpleDateFormat outputFormat = new SimpleDateFormat();
+	// Most time functions can only handle 1902 - 2037
+	private GregorianCalendar START_OF_EPOCH = new GregorianCalendar(2, 1, 1);
 
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss");
-    // Use default locale format
-    private SimpleDateFormat outputFormat = new SimpleDateFormat();
-    // Most time functions can only handle 1902 - 2037
-    private GregorianCalendar START_OF_EPOCH = new GregorianCalendar(2, 1, 1);
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_article_list);
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_article_list);
+		Toolbar toolbar = findViewById(R.id.toolbar);
+		setSupportActionBar(toolbar);
+		Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);
 
-        Toolbar toolbar = findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
-        Objects.requireNonNull(getSupportActionBar()).setDisplayShowTitleEnabled(false);
+		mSwipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
 
-        mSwipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
+		mRecyclerView = findViewById(R.id.recycler_view);
+		LoaderManager.getInstance(this).initLoader(0, null, this);
 
-        mRecyclerView = findViewById(R.id.recycler_view);
-        LoaderManager.getInstance(this).initLoader(0, null, this);
+		if (savedInstanceState == null) {
+			refresh();
+		}
+	}
 
-        if (savedInstanceState == null) {
-            refresh();
-        }
-    }
+	private void refresh() {
+		startService(new Intent(this, UpdaterService.class));
+	}
 
-    private void refresh() {
-        startService(new Intent(this, UpdaterService.class));
-    }
+	@Override
+	protected void onStart() {
+		super.onStart();
+		registerReceiver(mRefreshingReceiver,
+			new IntentFilter(UpdaterService.BROADCAST_ACTION_STATE_CHANGE));
+	}
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        registerReceiver(mRefreshingReceiver,
-                new IntentFilter(UpdaterService.BROADCAST_ACTION_STATE_CHANGE));
-    }
+	@Override
+	protected void onStop() {
+		super.onStop();
+		unregisterReceiver(mRefreshingReceiver);
+	}
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        unregisterReceiver(mRefreshingReceiver);
-    }
+	private boolean mIsRefreshing = false;
 
-    private boolean mIsRefreshing = false;
+	private BroadcastReceiver mRefreshingReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			if (UpdaterService.BROADCAST_ACTION_STATE_CHANGE.equals(intent.getAction())) {
+				mIsRefreshing = intent.getBooleanExtra(UpdaterService.EXTRA_REFRESHING, false);
+				updateRefreshingUI();
+			}
+		}
+	};
 
-    private BroadcastReceiver mRefreshingReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (UpdaterService.BROADCAST_ACTION_STATE_CHANGE.equals(intent.getAction())) {
-                mIsRefreshing = intent.getBooleanExtra(UpdaterService.EXTRA_REFRESHING, false);
-                updateRefreshingUI();
-            }
-        }
-    };
+	private void updateRefreshingUI() {
+		mSwipeRefreshLayout.setRefreshing(mIsRefreshing);
+	}
 
-    private void updateRefreshingUI() {
-        mSwipeRefreshLayout.setRefreshing(mIsRefreshing);
-    }
+	@Override
+	public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
+		return ArticleLoader.newAllArticlesInstance(this);
+	}
 
-    @Override
-    public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
-        return ArticleLoader.newAllArticlesInstance(this);
-    }
+	@Override
+	public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
+		Adapter adapter = new Adapter(cursor);
+		adapter.setHasStableIds(true);
+		mRecyclerView.setAdapter(adapter);
+		int columnCount = getResources().getInteger(R.integer.list_column_count);
+		StaggeredGridLayoutManager sglm =
+			new StaggeredGridLayoutManager(columnCount, StaggeredGridLayoutManager.VERTICAL);
+		mRecyclerView.setLayoutManager(sglm);
+	}
 
-    @Override
-    public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
-        Adapter adapter = new Adapter(cursor);
-        adapter.setHasStableIds(true);
-        mRecyclerView.setAdapter(adapter);
-        int columnCount = getResources().getInteger(R.integer.list_column_count);
-        StaggeredGridLayoutManager sglm =
-                new StaggeredGridLayoutManager(columnCount, StaggeredGridLayoutManager.VERTICAL);
-        mRecyclerView.setLayoutManager(sglm);
-    }
+	@Override
+	public void onLoaderReset(Loader<Cursor> loader) {
+		mRecyclerView.setAdapter(null);
+	}
 
-    @Override
-    public void onLoaderReset(Loader<Cursor> loader) {
-        mRecyclerView.setAdapter(null);
-    }
+	private class Adapter extends RecyclerView.Adapter<ViewHolder> {
+		private Cursor mCursor;
 
-    private class Adapter extends RecyclerView.Adapter<ViewHolder> {
-        private Cursor mCursor;
+		public Adapter(Cursor cursor) {
+			mCursor = cursor;
+		}
 
-        public Adapter(Cursor cursor) {
-            mCursor = cursor;
-        }
+		@Override
+		public long getItemId(int position) {
+			mCursor.moveToPosition(position);
+			return mCursor.getLong(ArticleLoader.Query._ID);
+		}
 
-        @Override
-        public long getItemId(int position) {
-            mCursor.moveToPosition(position);
-            return mCursor.getLong(ArticleLoader.Query._ID);
-        }
+		@Override
+		public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+			View view = getLayoutInflater().inflate(R.layout.list_item_article, parent, false);
+			final ViewHolder vh = new ViewHolder(view);
+			view.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View view) {
+					startActivity(new Intent(Intent.ACTION_VIEW,
+						ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition()))));
+				}
+			});
 
-        @Override
-        public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            View view = getLayoutInflater().inflate(R.layout.list_item_article, parent, false);
-            final ViewHolder vh = new ViewHolder(view);
-            view.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    startActivity(new Intent(Intent.ACTION_VIEW,
-                            ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition()))));
-                }
-            });
-            return vh;
-        }
+			return vh;
+		}
 
-        private Date parsePublishedDate() {
-            try {
-                String date = mCursor.getString(ArticleLoader.Query.PUBLISHED_DATE);
-                return dateFormat.parse(date);
-            } catch (ParseException ex) {
-                Log.e(TAG, ex.getMessage());
-                Log.i(TAG, "passing today's date");
-                return new Date();
-            }
-        }
+		private Date parsePublishedDate() {
+			try {
+				String date = mCursor.getString(ArticleLoader.Query.PUBLISHED_DATE);
+				return dateFormat.parse(date);
+			} catch (ParseException ex) {
+				Log.e(TAG, ex.getMessage());
+				Log.i(TAG, "passing today's date");
+				return new Date();
+			}
+		}
 
-        @Override
-        public void onBindViewHolder(final ViewHolder holder, int position) {
-            mCursor.moveToPosition(position);
-            holder.titleView.setText(mCursor.getString(ArticleLoader.Query.TITLE));
-            Date publishedDate = parsePublishedDate();
-            if (!publishedDate.before(START_OF_EPOCH.getTime())) {
+		@Override
+		public void onBindViewHolder(final ViewHolder holder, int position) {
+			mCursor.moveToPosition(position);
+			holder.titleView.setText(mCursor.getString(ArticleLoader.Query.TITLE));
+			Date publishedDate = parsePublishedDate();
 
-                holder.subtitleView.setText(Html.fromHtml(
-                        DateUtils.getRelativeTimeSpanString(
-                                publishedDate.getTime(),
-                                System.currentTimeMillis(), DateUtils.HOUR_IN_MILLIS,
-                                DateUtils.FORMAT_ABBREV_ALL).toString()
-                                + "<br/>" + " by <font color='#ffffff'>"
-                                + mCursor.getString(ArticleLoader.Query.AUTHOR)));
-            } else {
-                holder.subtitleView.setText(Html.fromHtml(
-                        outputFormat.format(publishedDate)
-                                + "<br/>" + " by "
-                                + mCursor.getString(ArticleLoader.Query.AUTHOR)));
-            }
+			holder.bind(ArticleListActivity.this, mCursor);
 
-            //Set color on Card View
-            ImageLoaderHelper.getInstance(ArticleListActivity.this).getImageLoader()
-                    .get(mCursor.getString(ArticleLoader.Query.THUMB_URL), new ImageLoader.ImageListener() {
-                        @Override
-                        public void onResponse(ImageLoader.ImageContainer imageContainer, boolean b) {
-                            Bitmap bitmap = imageContainer.getBitmap();
-                            if (bitmap != null) {
-                                Palette p = Palette.generate(bitmap, 12);
-                                int mMutedColor = 0xFF333333;
+			if (!publishedDate.before(START_OF_EPOCH.getTime())) {
+				holder.subtitleView.setText(Html.fromHtml(
+					DateUtils.getRelativeTimeSpanString(
+						publishedDate.getTime(),
+						System.currentTimeMillis(), DateUtils.HOUR_IN_MILLIS,
+						DateUtils.FORMAT_ABBREV_ALL).toString()
+						+ "<br/>" + " by "
+						+ mCursor.getString(ArticleLoader.Query.AUTHOR)));
+			} else {
+				holder.subtitleView.setText(Html.fromHtml(
+					outputFormat.format(publishedDate)
+						+ "<br/>" + " by "
+						+ mCursor.getString(ArticleLoader.Query.AUTHOR)));
+			}
+		}
 
-                                mMutedColor = p.getDarkMutedColor(0xFF333333);
-                                holder.cardView.setCardBackgroundColor(mMutedColor);
+		@Override
+		public int getItemCount() {
+			return mCursor.getCount();
+		}
+	}
 
-                            }
-                        }
+	public static class ViewHolder extends RecyclerView.ViewHolder {
+		public ImageView thumbnailView;
+		public TextView titleView;
+		public TextView subtitleView;
+		public CardView cardView;
 
-                        @Override
-                        public void onErrorResponse(VolleyError volleyError) {
+		public ViewHolder(View view) {
+			super(view);
+			thumbnailView = view.findViewById(R.id.thumbnail);
+			titleView = view.findViewById(R.id.article_title);
+			subtitleView = view.findViewById(R.id.article_subtitle);
+			cardView = view.findViewById(R.id.cardview);
+		}
 
-                        }
-                    });
+        public void bind(Context context, Cursor cursor) {
+		    this.titleView.setText(cursor.getString(ArticleLoader.Query.TITLE));
 
-            Picasso.get().load(mCursor.getString(ArticleLoader.Query.THUMB_URL))
-                    .placeholder(R.drawable.empty_detail)
-                    .into(holder.thumbnailView);
-
-//            holder.thumbnailView.setImageUrl(
-//                    mCursor.getString(ArticleLoader.Query.THUMB_URL),
-//                    ImageLoaderHelper.getInstance(ArticleListActivity.this).getImageLoader());
-//            holder.thumbnailView.setAspectRatio(mCursor.getFloat(ArticleLoader.Query.ASPECT_RATIO));
+		    this.loadImage(cursor.getString(ArticleLoader.Query.THUMB_URL));
+		    this.calculateBackgroundColor(context, cursor.getString(ArticleLoader.Query.THUMB_URL));
         }
 
-        @Override
-        public int getItemCount() {
-            return mCursor.getCount();
+        private void loadImage(String path) {
+			Picasso.get()
+				.load(path)
+				.placeholder(R.drawable.empty_detail)
+				.into(this.thumbnailView);
         }
-    }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        //public DynamicHeightNetworkImageView thumbnailView;
-        public ImageView thumbnailView;
-        public TextView titleView;
-        public TextView subtitleView;
-        public CardView cardView;
+		private void calculateBackgroundColor(Context context, String imagePath) {
+			ImageLoaderHelper.getInstance(context)
+				.getImageLoader()
+				.get(imagePath, new ImageLoader.ImageListener() {
+					@Override
+					public void onResponse(ImageLoader.ImageContainer imageContainer, boolean b) {
+						Bitmap bitmap = imageContainer.getBitmap();
 
-        public ViewHolder(View view) {
-            super(view);
-            //thumbnailView = (DynamicHeightNetworkImageView) view.findViewById(R.id.thumbnail);
-            thumbnailView = view.findViewById(R.id.thumbnail);
-            titleView = (TextView) view.findViewById(R.id.article_title);
-            subtitleView = (TextView) view.findViewById(R.id.article_subtitle);
-            cardView = view.findViewById(R.id.cardview);
-        }
-    }
+						if (bitmap != null) {
+							Palette p = Palette.generate(bitmap, 12);
+							int mMutedColor;
+
+							mMutedColor = p.getDarkMutedColor(0xFF333333);
+							cardView.setCardBackgroundColor(mMutedColor);
+						}
+					}
+
+					@Override
+					public void onErrorResponse(VolleyError volleyError) {
+					}
+				});
+		}
+	}
 }

@@ -45,7 +45,6 @@
             android:clipToPadding="false"
             android:padding="8dp"
             android:scrollbarStyle="outsideOverlay"
-            app:layoutManager="androidx.recyclerview.widget.StaggeredGridLayoutManager"
             app:spanCount="2"
             tools:listitem="@layout/list_item_article" />
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
