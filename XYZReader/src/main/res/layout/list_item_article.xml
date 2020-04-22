@@ -17,7 +17,6 @@
             android:id="@+id/thumbnail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:contentDescription="@string/thumbnail_image"
             android:scaleType="centerCrop"
             android:src="@drawable/pexels"
             app:layout_constraintBottom_toTopOf="@+id/article_title"
