@@ -25,10 +25,10 @@
                 <!--suppress AndroidLintContentDescription -->
                 <ImageView
                     android:id="@+id/photo"
-                    tools:src="@drawable/pexels"
-                    android:scaleType="centerCrop"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent" />
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    tools:src="@drawable/pexels" />
 
                 <View
                     android:layout_width="match_parent"
@@ -38,7 +38,7 @@
             </FrameLayout>
 
             <com.example.xyzreader.ui.MaxWidthLinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:background="#fff"
@@ -47,35 +47,36 @@
                 android:orientation="vertical"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
+
                 app:layout_constraintTop_toBottomOf="@id/photo_container">
 
                 <LinearLayout
                     android:id="@+id/meta_bar"
+                    style="@style/meta_bar"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    style="@style/meta_bar">
+                    android:layout_height="wrap_content">
 
                     <TextView
                         android:id="@+id/article_title"
+                        style="@style/article_title_detail"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        tools:text="Publication Title"
-                        style="@style/article_title_detail" />
+                        tools:text="Publication Title" />
 
                     <TextView
                         android:id="@+id/article_byline"
+                        style="@style/article_by_line_detail"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        tools:text="Date and Name of Author"
-                        style="@style/article_by_line_detail" />
+                        tools:text="Date and Name of Author" />
                 </LinearLayout>
 
                 <TextView
                     android:id="@+id/article_body"
+                    style="@style/article_body_detail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    tools:text="Body of the Article is Going to come here"
-                    style="@style/article_body_detail" />
+                    tools:text="Body of the Article is Going to come here" />
 
             </com.example.xyzreader.ui.MaxWidthLinearLayout>
         </androidx.constraintlayout.widget.ConstraintLayout>
@@ -83,10 +84,10 @@
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/share_fab"
+        style="@style/fab_detail"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_share_white_24dp"
-        style="@style/fab_detail"
-        app:fabSize="auto"/>
+        app:fabSize="auto" />
 
 </com.example.xyzreader.ui.DrawInsetsFrameLayout>
