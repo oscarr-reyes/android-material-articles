@@ -12,6 +12,7 @@
         android:background="?colorPrimary"
         android:fitsSystemWindows="true"
         android:gravity="bottom"
+        android:elevation="4dp"
         app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
         <androidx.appcompat.widget.Toolbar
